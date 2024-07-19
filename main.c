@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 #define MIN_Y  2
-enum {LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10)};
+enum {LEFT=1, UP, RIGHT, DOWN, STOP_GAME= 'q'};
 enum {MAX_TAIL_SIZE=100, START_TAIL_SIZE=3, MAX_FOOD_SIZE=20, FOOD_EXPIRE_SECONDS=10};
 
 
@@ -85,18 +85,23 @@ void go(struct snake_t *head)
     switch (head->direction)
     {
         case LEFT:
-            if(head->x <= 0) // Циклическое движение, чтобы не
-// уходить за пределы экрана
-                head->x = max_x;
+            if(head->x <= 0)
+                head->x = max_x;  
             mvprintw(head->y, --(head->x), "%c", ch);
         break;
         case RIGHT:
+            if(head->x >= max_x)
+                head->x = 0; 
             mvprintw(head->y, ++(head->x), "%c", ch);
         break;
         case UP:
+            if(head->y <= 1)
+                head->y = max_y; 
             mvprintw(--(head->y), head->x, "%c", ch);
         break;
         case DOWN:
+            if(head->y >= max_y)
+                head->y = 0;
             mvprintw(++(head->y), head->x, "%c", ch);
         break;
         default:
@@ -143,12 +148,27 @@ snake_t* snake = (snake_t*)malloc(sizeof(snake_t));
     raw();                // Откдючаем line buffering
     noecho();            // Отключаем echo() режим при вызове getch
     curs_set(FALSE);    //Отключаем курсор
-    mvprintw(0, 0,"Use arrows for control. Press 'F10' for EXIT");
+    mvprintw(0, 0,"Use arrows for control. Press 'q' for EXIT");
     timeout(0);    //Отключаем таймаут после нажатия клавиши в цикле
-    int key_pressed=0;
+    int key_pressed = 0;
     while( key_pressed != STOP_GAME )
     {
         key_pressed = getch(); // Считываем клавишу
+
+        if ((key_pressed == KEY_DOWN) && (snake->direction == UP)) {
+            key_pressed = KEY_UP;
+        }
+        if ((key_pressed == KEY_UP) && (snake->direction == DOWN)) {
+            key_pressed = KEY_DOWN;
+        }
+        if ((key_pressed == KEY_RIGHT) && (snake->direction == LEFT)) {
+            key_pressed = KEY_LEFT;
+        }
+        if ((key_pressed == KEY_LEFT) && (snake->direction == RIGHT)) {
+            key_pressed = KEY_RIGHT;
+        }
+        
+
         go(snake);
         goTail(snake);
         timeout(100); // Задержка при отрисовке
