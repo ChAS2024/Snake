@@ -8,7 +8,7 @@
 
 #define MIN_Y  2
 enum {LEFT=1, UP, RIGHT, DOWN, STOP_GAME= 'q'};
-enum {MAX_TAIL_SIZE=100, START_TAIL_SIZE=3, MAX_FOOD_SIZE=20, FOOD_EXPIRE_SECONDS=10};
+enum {MAX_TAIL_SIZE=100, START_TAIL_SIZE=10, MAX_FOOD_SIZE=20, FOOD_EXPIRE_SECONDS=10};
 
 
 // Здесь храним коды управления змейкой
@@ -151,6 +151,16 @@ void goTail(struct snake_t *head)
     head->tail[0].y = head->y;
 }
 
+int check(struct snake_t *head) 
+{
+    for (size_t i = 3; i <= head->tsize - 1; ++i) {
+        if ((head->tail[i].y == head->y) && (head->tail[i].x == head->x)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int main()
 {
 snake_t* snake = (snake_t*)malloc(sizeof(snake_t));
@@ -163,14 +173,23 @@ snake_t* snake = (snake_t*)malloc(sizeof(snake_t));
     mvprintw(0, 0,"Use arrows for control. Press 'q' for EXIT");
     timeout(0);           //Отключаем таймаут после нажатия клавиши в цикле
     int key_pressed = 0;
-    while( key_pressed != STOP_GAME )
+    while(key_pressed != STOP_GAME)
     {
         key_pressed = getch(); // Считываем клавишу
         go(snake);
         goTail(snake);
+        if (check(snake)) {
+            mvprintw(1, 0, "Your Snake is DEAD!");
+            mvprintw(snake->y, snake->x, "@");
+            while(key_pressed != STOP_GAME) {
+                key_pressed = getch();
+            }
+            break;
+        }
         timeout(100); // Задержка при отрисовке
         changeDirection(snake, key_pressed);
     }
+    
     free(snake->tail);
     free(snake);
     endwin(); // Завершаем режим curses mod

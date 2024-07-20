@@ -1,5 +1,5 @@
 run: main.c
-	gcc -o run main.c -lcurses
+	gcc -Wall -o run main.c -lcurses
 
 clean:
 	rm run
