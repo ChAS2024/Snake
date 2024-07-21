@@ -20,7 +20,9 @@ struct control_buttons
     int right;
 }control_buttons;
 
-struct control_buttons default_controls = {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT};
+struct control_buttons default_controls[3] = {{KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                                              {     's',    'w',      'a',       'd'},
+                                              {     'S',    'W',      'A',       'D'}};
 
 /*
  Голова змейки содержит в себе
@@ -36,7 +38,7 @@ typedef struct snake_t
     int direction;
     size_t tsize;
     struct tail_t *tail;
-    struct control_buttons controls;
+    struct control_buttons* controls;
 } snake_t;
 
 /*
@@ -110,9 +112,50 @@ void go(struct snake_t *head)
     refresh();
 }
 
+int checkDirection(struct snake_t* snake, const int32_t key) {
+
+    for (int i = 0; i < 3; ++i) {
+        if ((key == snake->controls[i].down) && (snake->direction != UP)) {
+            return 1;
+        } else if ((key == snake->controls[i].up) && (snake->direction != DOWN)) {
+            return 1;
+        } else if ((key == snake->controls[i].right) && (snake->direction != LEFT)) {
+            return 1;
+        } else if ((key == snake->controls[i].left) && (snake->direction != RIGHT)) {
+            return 1;
+        }
+    }
+    return 0;
+
+    /* if ((key == snake->controls.down) && (snake->direction != UP)) {
+        return 1;
+    } else if ((key == snake->controls.up) && (snake->direction != DOWN)) {
+        return 1;
+    } else if ((key == snake->controls.right) && (snake->direction != LEFT)) {
+        return 1;
+    } else if ((key == snake->controls.left) && (snake->direction != RIGHT)) {
+        return 1;
+    } else {
+        return 0;
+    } */
+}
+
 void changeDirection(struct snake_t* snake, const int32_t key)
 {
-    if (key == snake->controls.down) {
+    if (checkDirection(snake, key)) {
+        for (int i = 0; i < 3; ++i) {
+            if (key == snake->controls[i].down)
+                snake->direction = DOWN;
+            else if (key == snake->controls[i].up)
+                snake->direction = UP;
+            else if (key == snake->controls[i].right)
+                snake->direction = RIGHT;
+            else if (key == snake->controls[i].left)
+                snake->direction = LEFT;
+        }
+    }
+
+   /*  if (key == snake->controls.down) {
         if (snake->direction != UP) {
             snake->direction = DOWN;
         }
@@ -131,7 +174,7 @@ void changeDirection(struct snake_t* snake, const int32_t key)
         if (snake->direction != RIGHT) {
             snake->direction = LEFT;
         }
-    }
+    } */
 }
 
 /*
