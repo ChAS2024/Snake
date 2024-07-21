@@ -7,8 +7,20 @@
 #include <unistd.h>
 
 #define MIN_Y  2
-enum {LEFT=1, UP, RIGHT, DOWN, STOP_GAME= 'q'};
-enum {MAX_TAIL_SIZE=100, START_TAIL_SIZE=10, MAX_FOOD_SIZE=20, FOOD_EXPIRE_SECONDS=10};
+enum {
+    LEFT      = 1, 
+    UP, 
+    RIGHT, 
+    DOWN, 
+    STOP_GAME = 'q'
+};
+enum {  
+    MAX_TAIL_SIZE       = 10, 
+    START_TAIL_SIZE     = 3, 
+    MAX_FOOD_SIZE       = 20, 
+    FOOD_EXPIRE_SECONDS = 10,
+    SEED_NUMBER         = 5
+};
 
 
 // Здесь храним коды управления змейкой
@@ -50,14 +62,100 @@ typedef struct tail_t
     int y;
 } tail_t;
 
-void initTail(struct tail_t t[], size_t size)
+struct food
 {
-    struct tail_t init_t={0,0};
-    for(size_t i=0; i<size; i++)
+    int x;
+    int y;
+    time_t put_time;
+    char point;
+    uint8_t enable;
+} food[MAX_FOOD_SIZE];
+
+void initFood(struct food f[], size_t size)
+{
+    struct food init = {0,0,0,0,0};
+    for(size_t i = 0; i < size; i++)
     {
-        t[i]=init_t;
+        f[i] = init;
     }
 }
+/*
+ Обновить/разместить текущее зерно на поле
+ */
+void putFoodSeed(struct food *fp)
+{
+    int max_x=0, max_y=0;
+    char spoint[2] = {0};
+    getmaxyx(stdscr, max_y, max_x);
+    mvprintw(fp->y, fp->x, " ");
+    fp->x = rand() % (max_x - 1);
+    fp->y = rand() % (max_y - 2) + 1; //Не занимаем верхнюю строку
+    fp->put_time = time(NULL);
+    fp->point = '$';
+    fp->enable = 1;
+    spoint[0] = fp->point;
+    mvprintw(fp->y, fp->x, "%s", spoint);
+}
+
+/*
+ Разместить еду на поле
+ */
+void putFood(struct food f[], size_t number_seeds)
+{
+    for(size_t i = 0; i < number_seeds; i++)
+    {
+        putFoodSeed(&f[i]);
+    }
+}
+
+void refreshFood(struct food f[], int nfood)
+{
+    for(size_t i=0; i<nfood; i++)
+    {
+        if( f[i].put_time )
+        {
+            if( !f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS )
+            {
+                putFoodSeed(&f[i]);
+            }
+        }
+    }
+}
+
+int haveEat(struct snake_t *head, struct food f[]) 
+{
+    for (size_t i = 0; i < MAX_FOOD_SIZE; ++i) {
+        if ((head->y == f[i].y) && (head->x == f[i].x)) {
+            f[i].enable = 0;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void initTail(struct tail_t t[], size_t size)
+{
+    struct tail_t init_t = {0, 0};
+    for(size_t i = 0; i<size; i++)
+    {
+        t[i] = init_t;
+    }
+}
+
+int addTail(struct snake_t *head) {
+    if (head->tsize == MAX_TAIL_SIZE) {
+        /* mvprintw(1, 0, " You WON!");
+        while(key_pressed != STOP_GAME) {
+            key_pressed = getch();
+        } */
+        return 1;
+    } else {
+        head->tsize++;
+        return 0;
+    }   
+        
+}
+
 void initHead(struct snake_t *head, int x, int y)
 {
     head->x = x;
@@ -194,7 +292,7 @@ void goTail(struct snake_t *head)
     head->tail[0].y = head->y;
 }
 
-int check(struct snake_t *head) 
+int checkCrossItSelf(struct snake_t *head) 
 {
     for (size_t i = 3; i <= head->tsize - 1; ++i) {
         if ((head->tail[i].y == head->y) && (head->tail[i].x == head->x)) {
@@ -207,22 +305,35 @@ int check(struct snake_t *head)
 int main()
 {
 snake_t* snake = (snake_t*)malloc(sizeof(snake_t));
-    initSnake(snake,START_TAIL_SIZE,10,10);
+    initSnake(snake, START_TAIL_SIZE, 10, 10);
     initscr();
     keypad(stdscr, TRUE); // Включаем F1, F2, стрелки и т.д.
     raw();                // Откдючаем line buffering
     noecho();             // Отключаем echo() режим при вызове getch
     curs_set(FALSE);      //Отключаем курсор
-    mvprintw(0, 0,"Use arrows for control. Press 'q' for EXIT");
+    mvprintw(0, 0," Use arrows for control. Press 'q' for EXIT");
     timeout(0);           //Отключаем таймаут после нажатия клавиши в цикле
+    initFood(food, MAX_FOOD_SIZE);
+    putFood(food, SEED_NUMBER);// Кладем зерна 
     int key_pressed = 0;
     while(key_pressed != STOP_GAME)
     {
         key_pressed = getch(); // Считываем клавишу
         go(snake);
         goTail(snake);
-        if (check(snake)) {
-            mvprintw(1, 0, "Your Snake is DEAD!");
+
+        if (haveEat(snake, food)) {
+            if (addTail(snake)) {
+                mvprintw(1, 0, " You WON!");
+                while(key_pressed != STOP_GAME) {
+                key_pressed = getch();
+            }
+            break;
+            }
+        }
+        
+        if (checkCrossItSelf(snake)) {
+            mvprintw(1, 0, " Your Snake is DEAD!");
             mvprintw(snake->y, snake->x, "@");
             while(key_pressed != STOP_GAME) {
                 key_pressed = getch();
@@ -230,6 +341,7 @@ snake_t* snake = (snake_t*)malloc(sizeof(snake_t));
             break;
         }
         timeout(100); // Задержка при отрисовке
+        refreshFood(food, SEED_NUMBER);// Обновляем еду 
         changeDirection(snake, key_pressed);
     }
     
